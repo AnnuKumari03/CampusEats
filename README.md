@@ -1,3 +1,8 @@
+Group- 10
+Team Leader:Annu Kumari
+Team Member 1 : Akanksha Upadhayay
+Team Menber 2: Prerna
+
 # CampusEats
 
 CampusEats is a web services project being developed by a team of three MCA
