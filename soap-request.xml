@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<soap:Envelope
+    xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+    xmlns:pay="http://campuseats.example.com/campuspay">
+
+    <soap:Header>
+
+        <pay:Authentication>
+            <pay:username>campuseats-client</pay:username>
+            <pay:token>DEMO-TOKEN-12345</pay:token>
+        </pay:Authentication>
+
+    </soap:Header>
+
+    <soap:Body>
+
+        <pay:chargeRequest>
+            <pay:orderId>ORD1001</pay:orderId>
+            <pay:amount>500.00</pay:amount>
+            <pay:currency>INR</pay:currency>
+            <pay:cardToken>tok_demo_12345</pay:cardToken>
+        </pay:chargeRequest>
+
+    </soap:Body>
+
+</soap:Envelope>
