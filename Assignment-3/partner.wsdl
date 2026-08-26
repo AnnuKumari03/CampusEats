@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<definitions
+    name="CampusPayService"
+    targetNamespace="http://campuseats.example.com/campuspay"
+    xmlns="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="http://campuseats.example.com/campuspay">
+
+    <types>
+
+        <xsd:schema
+            targetNamespace="http://campuseats.example.com/campuspay">
+
+            <xsd:element name="chargeRequest">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="orderId" type="xsd:string"/>
+                        <xsd:element name="amount" type="xsd:decimal"/>
+                        <xsd:element name="currency" type="xsd:string"/>
+                        <xsd:element name="cardToken" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <xsd:element name="chargeResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="paymentId" type="xsd:string"/>
+                        <xsd:element name="status" type="xsd:string"/>
+                        <xsd:element name="message" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+        </xsd:schema>
+
+    </types>
+
+
+    <message name="ChargeRequestMessage">
+        <part name="parameters" element="tns:chargeRequest"/>
+    </message>
+
+    <message name="ChargeResponseMessage">
+        <part name="parameters" element="tns:chargeResponse"/>
+    </message>
+
+
+    <portType name="CampusPayPortType">
+
+        <operation name="charge">
+
+            <input message="tns:ChargeRequestMessage"/>
+            <output message="tns:ChargeResponseMessage"/>
+
+        </operation>
+
+    </portType>
+
+
+    <binding name="CampusPaySoapBinding"
+             type="tns:CampusPayPortType">
+
+        <soap:binding
+            style="document"
+            transport="http://schemas.xmlsoap.org/soap/http"/>
+
+        <operation name="charge">
+
+            <soap:operation
+                soapAction="http://campuseats.example.com/campuspay/charge"/>
+
+            <input>
+                <soap:body use="literal"/>
+            </input>
+
+            <output>
+                <soap:body use="literal"/>
+            </output>
+
+        </operation>
+
+    </binding>
+
+
+    <service name="CampusPayService">
+
+        <port
+            name="CampusPaySoapPort"
+            binding="tns:CampusPaySoapBinding">
+
+            <soap:address
+                location="https://api.campuspay.example.com/soap/payment"/>
+
+        </port>
+
+    </service>
+
+</definitions>
