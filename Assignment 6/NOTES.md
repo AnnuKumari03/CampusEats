@@ -2,10 +2,10 @@
 
 ## Team details
 - Group: 10
-- Team leader: Annu Kumari
-- Team member: Akanksha Upadhayay
-- Team member: Prerna
-- Roll numbers: **Add each member's roll number before submission.** Roll numbers were not present in the supplied repository files.
+- Team leader: Annu Kumari [20251651024]
+- Team member: Akanksha Upadhayay [20251651011]
+- Team member: Prerna [20251651072]
+
 
 ## Basis and scope
 This submission is based on the supplied `CampusEats/LAb5.zip` Assignment 5 service. It is the same Flask Orders service (`app.py`, `models.py`, `store.py`, `payments_client.py`) on port 8090; no separate service was created. The existing A5 order body is `userId`, `itemId`, `quantity`, `amount` (paise), and `cardToken`. Its model stores one `itemId` and has no cart collection or delivery address. To avoid inventing a new CampusEats data model, this update retains that A5 payload. Therefore the generic brief's `items[]`/`address` example is not silently claimed as implemented; see the limitation note under Part C.
