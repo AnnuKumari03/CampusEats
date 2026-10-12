@@ -1,0 +1,322 @@
+openapi: 3.0.3
+info:
+  title: CampusEats Orders
+  version: "1.1.0"
+  description: Assignment 5 HTTP Methods, Headers, Caching and Safe Retries.
+servers:
+  - url: http://localhost:8090
+  - url: https://api.campuseats.dev
+paths:
+  /orders:
+    get:
+      summary: List orders with query filtering, sorting and pagination
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/Accept'
+        - in: query
+          name: userId
+          schema: {type: integer}
+        - in: query
+          name: status
+          schema: {type: string, enum: [pending, confirmed, cancelled]}
+        - in: query
+          name: sort
+          schema: {type: string, enum: [id, createdAt, amount], default: id}
+        - in: query
+          name: order
+          schema: {type: string, enum: [asc, desc], default: asc}
+        - in: query
+          name: page
+          schema: {type: integer, minimum: 1, default: 1}
+        - in: query
+          name: limit
+          schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+      responses:
+        '200':
+          description: Matching orders
+          headers:
+            X-RateLimit-Limit: {schema: {type: integer}}
+            X-RateLimit-Remaining: {schema: {type: integer}}
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/Order'}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+    post:
+      summary: Create an order
+      parameters:
+        - $ref: '#/components/parameters/AuthorizationOptional'
+        - $ref: '#/components/parameters/Accept'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateOrderRequest'}
+      responses:
+        '201':
+          description: Order created
+          headers:
+            Location: {description: URI of newly created order, schema: {type: string}}
+            X-RateLimit-Limit: {schema: {type: integer}}
+            X-RateLimit-Remaining: {schema: {type: integer}}
+            ETag: {$ref: '#/components/headers/ETag'}
+            Cache-Control: {$ref: '#/components/headers/CacheControl'}
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/Order'}}
+        '200':
+          description: Original order returned for an idempotent repeat
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/Order'}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    options:
+      summary: Advertise methods allowed for /orders
+      responses:
+        '204':
+          description: Allowed methods
+          headers:
+            Allow: {schema: {type: string}, example: GET, POST, OPTIONS}
+  /orders/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: integer}
+    get:
+      summary: Read one order
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/Accept'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Order found
+          headers:
+            ETag: {$ref: '#/components/headers/ETag'}
+            Cache-Control: {$ref: '#/components/headers/CacheControl'}
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/Order'}}
+        '304': {description: Not modified; no body}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '406': {$ref: '#/components/responses/NotAcceptable'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+    put:
+      summary: Replace an order representation
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/Accept'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateOrderRequest'}}
+      responses:
+        '200':
+          description: Order replaced
+          headers: {ETag: {$ref: '#/components/headers/ETag'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/Order'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '412': {$ref: '#/components/responses/PreconditionFailed'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+    patch:
+      summary: Partially modify an order
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/Accept'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/PatchOrderRequest'}}
+      responses:
+        '200':
+          description: Order modified
+          headers: {ETag: {$ref: '#/components/headers/ETag'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/Order'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '412': {$ref: '#/components/responses/PreconditionFailed'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+    delete:
+      summary: Delete an order
+      parameters:
+        - $ref: '#/components/parameters/Authorization'
+      responses:
+        '204': {description: Order deleted}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+    options:
+      summary: Advertise methods allowed for one order
+      responses:
+        '204':
+          description: Allowed methods
+          headers: {Allow: {schema: {type: string}, example: GET, POST, PUT, PATCH, DELETE, OPTIONS}}
+  /orders/{id}/cancellation:
+    post:
+      summary: Start cancellation as a non-CRUD action
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: integer}
+        - $ref: '#/components/parameters/Authorization'
+        - $ref: '#/components/parameters/Accept'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Cancellation accepted
+          content: {application/json: {schema: {$ref: '#/components/schemas/CancellationResponse'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '429': {$ref: '#/components/responses/TooManyRequests'}
+components:
+  parameters:
+    Authorization:
+      in: header
+      name: Authorization
+      required: true
+      schema: {type: string}
+      example: Bearer demo-token
+    AuthorizationOptional:
+      in: header
+      name: Authorization
+      required: false
+      schema: {type: string}
+      example: Bearer demo-token
+    Accept:
+      in: header
+      name: Accept
+      required: false
+      schema: {type: string, default: application/json}
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: false
+      schema: {type: string}
+    IfNoneMatch:
+      in: header
+      name: If-None-Match
+      required: false
+      schema: {type: string}
+    IfMatch:
+      in: header
+      name: If-Match
+      required: true
+      schema: {type: string}
+  headers:
+    ETag:
+      description: Entity tag for cache validation and concurrency control
+      schema: {type: string}
+    CacheControl:
+      description: Cache policy for the response
+      schema: {type: string}
+      example: private, max-age=60
+    RateLimitHeaders:
+      X-RateLimit-Limit: {description: Per-client request budget, schema: {type: integer}}
+      X-RateLimit-Remaining: {description: Remaining requests in the current client budget, schema: {type: integer}}
+  responses:
+    BadRequest:
+      description: Malformed request
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    Unauthorized:
+      description: Missing or empty bearer token
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    NotFound:
+      description: Resource not found
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    Conflict:
+      description: Resource state conflict
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    NotAcceptable:
+      description: Unsupported response representation
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    PreconditionFailed:
+      description: If-Match ETag does not match current resource
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    UnprocessableEntity:
+      description: Valid request rejected by a domain rule
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    TooManyRequests:
+      description: Per-client rate limit exceeded
+      headers:
+        Retry-After: {schema: {type: integer}}
+        X-RateLimit-Limit: {schema: {type: integer}}
+        X-RateLimit-Remaining: {schema: {type: integer}}
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+    ServiceUnavailable:
+      description: Dependency/service unavailable
+      headers:
+        Retry-After: {description: Seconds before retrying, schema: {type: integer}, example: 5}
+      content: {application/problem+json: {schema: {$ref: '#/components/schemas/Problem'}}}
+  schemas:
+    CreateOrderRequest:
+      type: object
+      required: [userId, itemId, quantity, amount, cardToken]
+      properties:
+        userId: {type: integer}
+        itemId: {type: integer}
+        quantity: {type: integer, minimum: 1}
+        amount: {type: integer, minimum: 1, description: Amount in paise}
+        cardToken: {type: string}
+    UpdateOrderRequest:
+      type: object
+      required: [userId, itemId, quantity, amount, status]
+      properties:
+        userId: {type: integer}
+        itemId: {type: integer}
+        quantity: {type: integer, minimum: 1}
+        amount: {type: integer, minimum: 1}
+        status: {type: string, enum: [pending, confirmed, cancelled]}
+    PatchOrderRequest:
+      type: object
+      properties:
+        quantity: {type: integer, minimum: 1}
+        status: {type: string, enum: [pending, confirmed, cancelled]}
+    Order:
+      type: object
+      required: [id, userId, itemId, quantity, amount, status, createdAt]
+      properties:
+        id: {type: integer}
+        userId: {type: integer}
+        itemId: {type: integer}
+        quantity: {type: integer}
+        amount: {type: integer}
+        status: {type: string, enum: [pending, confirmed, cancelled]}
+        paymentId: {type: integer, nullable: true}
+        createdAt: {type: string, format: date-time}
+    CancellationResponse:
+      type: object
+      required: [orderId, status]
+      properties:
+        orderId: {type: integer}
+        status: {type: string, enum: [cancelled]}
+    Problem:
+      type: object
+      required: [type, title, status, detail]
+      properties:
+        type: {type: string, format: uri}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+        errors:
+          type: array
+          description: Field-level validation failures; present on 422 validation responses.
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field: {type: string}
+              message: {type: string}

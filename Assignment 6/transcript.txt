@@ -1,0 +1,124 @@
+CS543 — CampusEats Assignment 6
+curl transcript commands (run locally; paste actual curl -i output under each command)
+
+IMPORTANT
+- This service is the A5 Flask service, default port 8090.
+- Start it: flask --app app run --port 8090
+- A successful POST calls the Payments dependency. Start/configure the A5 Payments service first.
+- These are runnable commands, not captured outputs. Do not submit them as actual evidence until you paste your terminal output.
+- For rate limiting, use RATE_LIMIT=3 for a quick local test, then restart the service.
+
+======================================================================
+D1. SUCCESS — POST /orders (expect 201 + Location)
+======================================================================
+curl -i -X POST http://localhost:8090/orders \
+  -H "Authorization: Bearer demo-token" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "Idempotency-Key: order-a6-001" \
+  -d '{"userId":10,"itemId":101,"quantity":2,"amount":50000,"cardToken":"tok_demo_12345"}'
+
+PASTE ACTUAL OUTPUT HERE.
+
+======================================================================
+A2. VALIDATION — two bad fields together (expect 422)
+======================================================================
+curl -i -X POST http://localhost:8090/orders \
+  -H "Authorization: Bearer demo-token" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"itemId":101,"quantity":0,"amount":50000,"cardToken":"tok_demo_12345"}'
+
+PASTE ACTUAL OUTPUT HERE. Confirm the errors[] array lists both userId and quantity.
+
+======================================================================
+D2. UNKNOWN ORDER (expect 404 Problem Details)
+======================================================================
+curl -i http://localhost:8090/orders/999 \
+  -H "Authorization: Bearer demo-token" \
+  -H "Accept: application/json"
+
+PASTE ACTUAL OUTPUT HERE.
+
+======================================================================
+D2. ILLEGAL TRANSITION (expect 409)
+======================================================================
+After creating an order, get its current ETag and try PATCH with If-Match.
+Example for order 1; use the actual ID and ETag from your run:
+curl -i -X PATCH http://localhost:8090/orders/1 \
+  -H "Authorization: Bearer demo-token" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H 'If-Match: "order-1-v1"' \
+  -d '{"status":"pending"}'
+
+PASTE ACTUAL OUTPUT HERE. If the requested transition is legal for the order's current status, choose a transition the service disallows.
+
+======================================================================
+D2. RATE LIMIT (expect 429 + Retry-After)
+======================================================================
+Run several requests rapidly after restarting with RATE_LIMIT=3:
+for ($i=1; $i -le 6; $i++) { curl -i http://localhost:8090/orders/999 -H "Authorization: Bearer demo-token"; }
+
+PASTE ACTUAL OUTPUT HERE. Confirm 429 includes Retry-After: 60.
+
+======================================================================
+D2. PAYMENT DECLINED (expect 422 payment-declined)
+======================================================================
+Use the payment-provider decline token supported by your local A5 Payments service:
+curl -i -X POST http://localhost:8090/orders \
+  -H "Authorization: Bearer demo-token" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "Idempotency-Key: order-a6-decline" \
+  -d '{"userId":10,"itemId":101,"quantity":1,"amount":100,"cardToken":"<DECLINE_TOKEN_FROM_YOUR_PAYMENT_SERVICE>"}'
+
+PASTE ACTUAL OUTPUT HERE. Replace the placeholder with a token documented by your payment service; do not assume one.
+
+======================================================================
+D2. PAYMENTS UNAVAILABLE (expect 503 + Retry-After)
+======================================================================
+Stop the Payments dependency temporarily and submit a valid create request:
+curl -i -X POST http://localhost:8090/orders \
+  -H "Authorization: Bearer demo-token" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "Idempotency-Key: order-a6-unavailable" \
+  -d '{"userId":10,"itemId":101,"quantity":1,"amount":100,"cardToken":"tok_demo_12345"}'
+
+PASTE ACTUAL OUTPUT HERE. Confirm 503 and Retry-After: 5.
+
+======================================================================
+D3. JSON NEGOTIATION
+======================================================================
+curl -i http://localhost:8090/orders/1 -H "Authorization: Bearer demo-token" -H "Accept: application/json"
+
+PASTE ACTUAL OUTPUT HERE.
+
+======================================================================
+D3. XML NEGOTIATION
+======================================================================
+curl -i http://localhost:8090/orders/1 -H "Authorization: Bearer demo-token" -H "Accept: application/xml"
+
+PASTE ACTUAL OUTPUT HERE. Confirm Content-Type: application/xml; charset=utf-8.
+
+======================================================================
+D3. UNSUPPORTED FORMAT (expect 406)
+======================================================================
+curl -i http://localhost:8090/orders/1 -H "Authorization: Bearer demo-token" -H "Accept: application/pdf"
+
+PASTE ACTUAL OUTPUT HERE.
+
+======================================================================
+D4. A5 REGRESSION — idempotent POST
+======================================================================
+Run the same POST twice with the same Idempotency-Key. First request should create the order (201); second should return the original order (200) without repeating payment work.
+
+PASTE BOTH ACTUAL OUTPUTS HERE.
+
+======================================================================
+D4. A5 REGRESSION — timeout/retry
+======================================================================
+Run the timeout/retry scenario documented by the A5 Payments service. Record the actual terminal output and verify transient payment failures are retried and ultimately map to 503 if the dependency remains unavailable.
+
+PASTE ACTUAL OUTPUT HERE.

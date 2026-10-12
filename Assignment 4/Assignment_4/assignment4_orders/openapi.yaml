@@ -1,0 +1,199 @@
+openapi: 3.0.3
+info:
+  title: CampusEats Orders
+  version: "1.0.0"
+  description: Creates, reads, filters and cancels CampusEats orders.
+servers:
+  - url: http://localhost:8090
+  - url: https://api.campuseats.dev
+paths:
+  /orders:
+    post:
+      summary: Create an order and obtain payment confirmation
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '200':
+          description: Original order returned for an idempotent retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '422':
+          description: Payment declined
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '503':
+          description: Payments service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    get:
+      summary: List orders using filters
+      parameters:
+        - in: query
+          name: userId
+          schema:
+            type: integer
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, confirmed, cancelled]
+      responses:
+        '200':
+          description: Matching orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '400':
+          description: Invalid filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /orders/{id}:
+    get:
+      summary: Read one order
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Order found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /orders/{id}/cancellation:
+    post:
+      summary: Cancel an order
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '202':
+          description: Cancellation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancellationResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Order state prevents cancellation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+components:
+  schemas:
+    CreateOrderRequest:
+      type: object
+      required: [userId, itemId, quantity, amount, cardToken]
+      properties:
+        userId:
+          type: integer
+        itemId:
+          type: integer
+        quantity:
+          type: integer
+          minimum: 1
+        amount:
+          type: integer
+          minimum: 1
+          description: Amount in paise
+        cardToken:
+          type: string
+    Order:
+      type: object
+      required: [id, userId, itemId, quantity, amount, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        itemId:
+          type: integer
+        quantity:
+          type: integer
+        amount:
+          type: integer
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled]
+        paymentId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    CancellationResponse:
+      type: object
+      required: [orderId, status]
+      properties:
+        orderId:
+          type: integer
+        status:
+          type: string
+          enum: [cancelled]
+    Problem:
+      type: object
+      required: [type, title, status, detail]
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string

@@ -1,0 +1,191 @@
+CS543 — CampusEats Assignment 5
+curl -v verification transcript
+
+IMPORTANT: Run these commands from the Assignment 5 service directory on macOS/Linux.
+Start the service with: flask --app app run --port 8090
+Make sure the payment dependency used by PAYMENTS_URL is running before the create request.
+
+The sections below are the exact verification commands required by the assignment.
+After running them, paste the COMPLETE terminal output from each curl -v command under its matching
+"ACTUAL curl -v OUTPUT" heading. Do not leave only the expected status lines in the final submitted transcript.
+
+======================================================================
+1. SUCCESSFUL CREATE — 201 + Location
+======================================================================
+COMMAND
+curl -v -X POST http://localhost:8090/orders \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "Idempotency-Key: order-001" \
+  -d '{"userId":10,"itemId":101,"quantity":2,"amount":50000,"cardToken":"tok_demo_12345"}'
+
+ACTUAL curl -v OUTPUT
+PASTE TERMINAL OUTPUT HERE
+
+Required result: HTTP 201 Created and a Location header such as /orders/1.
+
+======================================================================
+2. SAME CREATE WITH SAME Idempotency-Key
+======================================================================
+COMMAND
+curl -v -X POST http://localhost:8090/orders \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "Idempotency-Key: order-001" \
+  -d '{"userId":10,"itemId":101,"quantity":2,"amount":50000,"cardToken":"tok_demo_12345"}'
+
+ACTUAL curl -v OUTPUT
+PASTE TERMINAL OUTPUT HERE
+
+Required result: the original order/result is returned without duplicate order/payment work.
+
+======================================================================
+3. GET SINGLE ORDER — obtain ETag
+======================================================================
+COMMAND
+curl -v http://localhost:8090/orders/1 \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer demo-token"
+
+ACTUAL curl -v OUTPUT
+PASTE TERMINAL OUTPUT HERE
+
+Required result: HTTP 200 OK with an ETag such as "order-1-v1".
+
+======================================================================
+4. CONDITIONAL GET — 304 Not Modified
+======================================================================
+COMMAND
+curl -v http://localhost:8090/orders/1 \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer demo-token" \
+  -H 'If-None-Match: "order-1-v1"'
+
+ACTUAL curl -v OUTPUT
+PASTE TERMINAL OUTPUT HERE
+
+Required result: HTTP 304 Not Modified with no response body. Use the exact ETag returned by step 3.
+
+======================================================================
+5. CONDITIONAL WRITE — 412 Precondition Failed
+======================================================================
+First update the order with its current ETag so the representation changes to v2. Then retry using
+the stale v1 ETag.
+
+COMMAND
+curl -v -X PUT http://localhost:8090/orders/1 \
+  -H "Authorization: Bearer demo-token" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H 'If-Match: "order-1-v1"' \
+  -d '{"userId":10,"itemId":101,"quantity":3,"amount":50000,"status":"confirmed"}'
+
+ACTUAL curl -v OUTPUT
+PASTE TERMINAL OUTPUT HERE
+
+Required result: after the order has already changed, the stale v1 write returns HTTP 412 Precondition Failed.
+
+======================================================================
+6. 400 BAD REQUEST — malformed/incomplete input
+======================================================================
+COMMAND
+curl -v -X POST http://localhost:8090/orders \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"userId":10,"quantity":-2}'
+
+ACTUAL curl -v OUTPUT
+PASTE TERMINAL OUTPUT HERE
+
+Required result: HTTP 400 Bad Request.
+
+======================================================================
+7. 404 NOT FOUND
+======================================================================
+COMMAND
+curl -v http://localhost:8090/orders/999 \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer demo-token"
+
+ACTUAL curl -v OUTPUT
+PASTE TERMINAL OUTPUT HERE
+
+Required result: HTTP 404 Not Found.
+
+======================================================================
+8. 401 UNAUTHORIZED
+======================================================================
+COMMAND
+curl -v http://localhost:8090/orders/1 \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer "
+
+ACTUAL curl -v OUTPUT
+PASTE TERMINAL OUTPUT HERE
+
+Required result: HTTP 401 Unauthorized.
+
+======================================================================
+9. OPTIONS + Allow
+======================================================================
+COMMAND
+curl -v -X OPTIONS http://localhost:8090/orders
+
+ACTUAL curl -v OUTPUT
+PASTE TERMINAL OUTPUT HERE
+
+Required result: HTTP 204 No Content and Allow: GET, POST, OPTIONS.
+
+For one-order OPTIONS, the service advertises the method-override fallback too:
+Allow: GET, POST, PUT, PATCH, DELETE, OPTIONS
+
+======================================================================
+10. Unsupported Accept — 406
+======================================================================
+COMMAND
+curl -v http://localhost:8090/orders/1 \
+  -H "Accept: application/xml" \
+  -H "Authorization: Bearer demo-token"
+
+ACTUAL curl -v OUTPUT
+PASTE TERMINAL OUTPUT HERE
+
+Required result: HTTP 406 Not Acceptable.
+
+======================================================================
+11. Rate limit — 429
+======================================================================
+Repeat requests from the same client until the per-client budget is exceeded.
+
+ACTUAL curl -v OUTPUT
+PASTE TERMINAL OUTPUT HERE
+
+Required result: HTTP 429 Too Many Requests with Retry-After: 60 and the rate-limit headers.
+
+======================================================================
+12. CORS preflight
+======================================================================
+COMMAND
+curl -v -X OPTIONS http://localhost:8090/orders \
+  -H "Origin: https://frontend.example" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: Content-Type, Authorization"
+
+ACTUAL curl -v OUTPUT
+PASTE TERMINAL OUTPUT HERE
+
+Required important response headers:
+Access-Control-Allow-Origin: https://frontend.example
+Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Headers: Content-Type, Accept, Authorization, Idempotency-Key, If-Match, If-None-Match, X-HTTP-Method-Override
+
+FINAL SUBMISSION CHECK
+[ ] Actual curl -v output pasted for 201 create
+[ ] Actual curl -v output pasted for idempotent repeat
+[ ] Actual curl -v output pasted for 304
+[ ] Actual curl -v output pasted for 412
+[ ] Actual curl -v output pasted for 400
+[ ] Actual curl -v output pasted for 404
+[ ] Actual curl -v output pasted for 401
+[ ] Tests pass locally with pytest -q
+[ ] openapi.yaml validates
