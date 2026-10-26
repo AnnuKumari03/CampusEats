@@ -1,0 +1,217 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusEats Menu</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 30px;
+      color: #222;
+    }
+
+    h1 {
+      text-align: center;
+      color: #174a6e;
+    }
+
+    .container {
+      max-width: 850px;
+      margin: auto;
+    }
+
+    .form-box, .menu-box {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px #ddd;
+    }
+
+    input {
+      padding: 10px;
+      margin: 5px 4px 5px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
+
+    button {
+      background: #176b87;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #104e64;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+
+    th {
+      background: #e7f1f5;
+    }
+
+    #message {
+      margin-top: 12px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CampusEats Menu</h1>
+
+    <div class="form-box">
+      <h2>Add Menu Item</h2>
+
+      <form id="menuForm">
+        <input id="name" placeholder="Dish name" required>
+        <input id="category" placeholder="Category" required>
+        <input id="price" type="number" min="0.01" step="0.01"
+               placeholder="Price" required>
+        <button type="submit">Add Item</button>
+      </form>
+
+      <p id="message"></p>
+    </div>
+
+    <div class="menu-box">
+      <h2>Available Menu Items</h2>
+      <button id="refreshBtn" type="button">Refresh Menu</button>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Dish</th>
+            <th>Category</th>
+            <th>Price (₹)</th>
+          </tr>
+        </thead>
+        <tbody id="menuBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const endpoint = '/graphql';
+
+    async function graphqlRequest(query) {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ query })
+      });
+
+      const result = await response.json();
+
+      if (result.errors) {
+        throw new Error(result.errors.map(e => e.message).join(', '));
+      }
+
+      return result.data;
+    }
+
+    async function loadMenu() {
+      const body = document.getElementById('menuBody');
+      body.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+
+      try {
+        const data = await graphqlRequest(`
+          query {
+            menuItems {
+              id
+              name
+              category
+              price
+            }
+          }
+        `);
+
+        body.innerHTML = '';
+
+        data.menuItems.forEach(item => {
+          const row = document.createElement('tr');
+
+          [item.id, item.name, item.category,
+           Number(item.price).toFixed(2)].forEach(value => {
+            const cell = document.createElement('td');
+            cell.textContent = value;
+            row.appendChild(cell);
+          });
+
+          body.appendChild(row);
+        });
+      } catch (error) {
+        body.innerHTML = '';
+        document.getElementById('message').textContent =
+          'Error loading menu: ' + error.message;
+      }
+    }
+
+    document.getElementById('menuForm').addEventListener('submit', async event => {
+      event.preventDefault();
+
+      const name = document.getElementById('name').value.trim();
+      const category = document.getElementById('category').value.trim();
+      const price = Number(document.getElementById('price').value);
+      const message = document.getElementById('message');
+
+      if (!name || !category || !Number.isFinite(price) || price <= 0) {
+        message.textContent = 'Please enter valid item details.';
+        return;
+      }
+
+      const safeName = JSON.stringify(name);
+      const safeCategory = JSON.stringify(category);
+
+      try {
+        await graphqlRequest(`
+          mutation {
+            addMenuItem(
+              name: ${safeName}
+              category: ${safeCategory}
+              price: ${price}
+            ) {
+              id
+              name
+              category
+              price
+            }
+          }
+        `);
+
+        message.textContent = 'Menu item added successfully!';
+        event.target.reset();
+        await loadMenu();
+      } catch (error) {
+        message.textContent = 'Error: ' + error.message;
+      }
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', loadMenu);
+
+    loadMenu();
+  </script>
+</body>
+</html>
