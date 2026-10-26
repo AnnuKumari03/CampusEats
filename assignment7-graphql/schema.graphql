@@ -1,0 +1,27 @@
+
+type MenuItem {
+  id: ID!
+  name: String!
+  category: String!
+  price: Float!
+}
+
+type Query {
+  menuItems: [MenuItem!]!
+  menuItem(id: ID!): MenuItem
+}
+
+type Mutation {
+  addMenuItem(
+    name: String!
+    category: String!
+    price: Float!
+  ): MenuItem!
+
+  updateMenuItem(
+    id: ID!
+    name: String!
+    category: String!
+    price: Float!
+  ): MenuItem
+}
