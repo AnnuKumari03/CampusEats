@@ -10,7 +10,7 @@
 |---|---|---|
 | Team Leader | Annu Kumari | 20251651024 |
 | Team Member | Prerna | 20251651072 |
-| Team Member | Akanksha Upadhaya | 20251651011 |
+| Team Member | Akanksha Upadhyay | 20251651011 |
 
 ## Project overview
 
