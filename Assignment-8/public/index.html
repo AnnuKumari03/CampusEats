@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CampusEats Catalogue</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>CampusEats Catalogue</h1>
+    <p class="sub">The menu &mdash; served by a REST API (Node + Express)</p>
+
+    <div id="list" class="list">Loading&hellip;</div>
+    <p id="deleteError" class="error" role="alert" hidden></p>
+
+    <form id="addForm" class="card">
+      <h3>Add a dish</h3>
+      <div class="field-row">
+        <input id="name" placeholder="Dish name" required>
+        <input id="price" type="number" min="0" step="1" placeholder="Price (rupees)">
+      </div>
+      <label class="checkbox-row">
+        <input id="available" type="checkbox" checked>
+        Available now
+      </label>
+      <button type="submit">Add dish</button>
+    </form>
+  </div>
+
+  <script>
+    async function load() {
+      const response = await fetch('/items');
+      const items = await response.json();
+
+      document.getElementById('list').innerHTML = items.map(item => {
+        const status = item.available ? 'Available' : 'Unavailable';
+        return `
+          <div class="dish ${item.available ? 'in-stock' : 'out-of-stock'}">
+            <div>
+              <div class="name">${item.name}</div>
+              <div class="meta">${status}</div>
+            </div>
+            <span class="price">&#8377;${item.price}</span>
+            <button type="button" class="delete-button" data-delete-id="${item.id}" aria-label="Remove item">Delete</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('list').addEventListener('click', async (event) => {
+      if (!(event.target instanceof Element)) return;
+      const deleteButton = event.target.closest('[data-delete-id]');
+      if (!deleteButton) return;
+
+      const errorMessage = document.getElementById('deleteError');
+      errorMessage.hidden = true;
+      deleteButton.disabled = true;
+
+      try {
+        const response = await fetch(`/items/${deleteButton.dataset.deleteId}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          throw new Error(`Delete failed (HTTP ${response.status}). Restart the server to load the DELETE endpoint.`);
+        }
+
+        await load();
+      } catch (error) {
+        errorMessage.textContent = error.message || 'Unable to delete item. Check that the server is running.';
+        errorMessage.hidden = false;
+        deleteButton.disabled = false;
+      }
+    });
+
+    document.getElementById('addForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const name = document.getElementById('name').value;
+      const price = document.getElementById('price').value;
+      const available = document.getElementById('available').checked;
+
+      await fetch('/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, price, available })
+      });
+
+      event.target.reset();
+      document.getElementById('available').checked = true;
+      load();
+    });
+
+    load();
+  </script>
+</body>
+</html>
